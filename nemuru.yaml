@@ -1,0 +1,1634 @@
+openapi: 3.0.0
+servers:
+  - url: 'https://api.nemuru.io/api/v2'
+    description: Prod
+  - url: 'https://api-release.nemuru.io/api/v2'
+    description: Dev
+info:
+  description: |
+    The Nemuru API is an HTTP API served by Nemuru. 
+    You can find more about Nemuru at [www.nemuru.com](https://www.nemuru.com).
+
+    # Introduction
+
+    Welcome to the Nemuru API Reference  👋
+
+    [Nemuru](https://www.nemuru.com) is an advanced financial software platform for automating the lending process at the point of sale between Merchants, Borrowers, and Lenders. In other words, Nemuru allows Merchants to offer realtime financing to their clients (Borrowers) through consumer Loans originated on the balance sheet of our lending partners (Lenders) — we are a credit intermediator platform.
+
+    ### How Nemuru works?
+
+    #### Merchant signup
+
+    Merchants interested in offering financing to their clients sign up on [Nemuru](https://www.nemuru.com). In order to become users, their documentation is requested, analyzed and validated (async process). If all checks are passed, Merchants are granted with credentials to log in the Nemuru app.
+
+    #### Borrower onboarding
+
+    Merchants — already admitted by Nemuru — can generate and send Loan proposals to their clients from their account. In this stage, Merchants set the initial Loan conditions (Loan amount, term, program) and introduce their client's information.
+
+    Their clients (Borrowers) receive a message containing the link to the corresponding onboarding process. They are requested to follow a set of steps to complete their application. These steps include:
+
+    - Accepting terms and conditions, GDPR, etc.
+    - Providing personal info
+    - Proving identity through video streaming (KYC/AML)
+    - Granting read access to their bank account (where we capture aggregate data about their consumption patterns)
+
+    At this point, our risk engine uses these data to perform comprehensive risk analyses and, in case the result is positive, the Loan application is distributed among our Lenders. If a Lender accepts the application, the Borrower receives the contract and signs digitally, the Loan is generated in the balance sheet of our Lender, and the process finishes. 
+
+    #### Merchant backoffice
+
+    The Merchant application, also known as Nemuru app, allows Merchants to check the details and status of their operations (Loans), send new Loan proposals to their clients, and access other resources and features. 
+
+    # API Reference
+
+    The Nemuru API is organized around [REST](https://en.wikipedia.org/wiki/Representational_state_transfer). Our API accepts [JSON-encoded](https://www.json.org/json-en.html) request bodies, returns [JSON-encoded](https://www.json.org/json-en.html) responses, and uses standard [HTTP response codes](04-status-codes.md) and authentication.
+
+    ### Environments
+
+    Two different environments are provided to interact with: `Development` and `Production`. You can use `Development` in test mode, which does not affect your live data or interact with our banking partners. The server, and corresponding API key used to [authenticate](03-authentication.md) the requests, determines whether is is live mode (`Production`) or test mode (`Development`).
+
+    ### Versioning
+
+    The Nemuru API uses versioning included in the URI. The numeric version of the API, specified by `v[x]` syntax in the URI, will only be up-versioned when a breaking change is made. Non-breaking changes, such as adding new endpoints or new response parameters, will not require a change to the major version number.
+
+    The latest version of the API is v2.0.0:
+
+    Environment | Base URL
+    ------------|---------
+    Dev  | https://api-release.nemuru.io/api/v2
+    Prod | https://api.nemuru.io/api/v2
+    
+    
+    📩 Subscribe to Nemuru's API **[announce mailing list](http://eepurl.com/g1HwDX)** for updates.
+    
+    # Authentication
+    
+    The Nemuru API uses API access token to authenticate requests. Your API keys carry many privileges, so be sure to keep them secure! 
+    
+    To get started and receive API credentials please contact us from our [website](http://www.nemuru.com).
+    
+    <!-- theme:warning -->
+    >Bear in mind that you might want to interact with the Nemuru API for different use cases:
+    >* For **creating Merchants** use the API credentials — username and password — provided to you. Once your Merchants are created, our risk algorithms will analyze the documentation provided by them (and this process may be delayed in time). If the documentation passes our checks, your Merchants will be granted with credentials — username and password —, which will be sent over to them via email.
+    >
+    >* Use the Merchant's credentials in case you want to interact with our API **on behalf of the Merchant**. In other words, if the Merchant needs to create a Loan or get her list of Loans, the coresponding request should be sent with the Merchant's credentials.
+    
+    In any case, in order to call our API, it will be necessary to request the access token with a username and password:
+      
+    ### Request
+    
+    ```bash
+    curl --request POST \
+    --url https://api.nemuru.com/api/auth/login \
+    --header 'Content-Type: application/json' \
+    --data '{"username": "username@email.com", "password": "12345"}'
+    ```
+    
+    ### Response
+    
+    ```json
+    {
+      "token_type": "Bearer",
+      "expires_in": 2678400,
+      "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNZjk4ZjgwIn0...",
+      "refresh_token": "def50200d7cef7d466cc4132310b098f86721272d301aed4c97f7e34b1b701d8..."
+    }
+    ```
+        
+    You should include your API access token in the header of your requests as follows:
+      
+    ```bash
+    --header 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNZjk4ZjgwIn0...'
+    ```
+    <SecurityDefinitions />
+
+    The authentication process can be pictured as:
+      
+    ![authentication-process](https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/8843a121-d1c6-454e-8f75-81242d160efa.png)
+    
+    All API requests myst be made over HTTPs. API requests without authentication will fail.
+      
+    # Status codes
+
+    Nemuru uses conventional HTTP response codes to indicate the success or failure of an API request. In general: Codes in the 2xx range indicate success. Codes in the 4xx range indicate an error that failed given the information provided (e.g., a required parameter was omitted, a merchant was already created, etc.). Codes in the 5xx range indicate an error with Nemuru's servers.
+
+    HTTP STATUS CODE
+
+    Code | Label | Description
+    ---------|----------|---------
+    200 | OK | Everything worked as expected.
+    201 | Created | The requested resource was created.
+    400 | Bad Request | The request was unacceptable, often due to missing a required parameter.
+    401 | Unauthorized | The parameters were valid but the request failed.
+    403 | Forbidden | The access to the requested resource is forbidden.
+    404 | Not Found | The requested resource doesn't exist.
+    409 | Conflict | The request conflicts with another request.
+    500 | Server Errors | Something went wrong on Nemuru's end.
+
+    # Use cases
+
+    Nemuru API's endpoints are made available to respond the following use cases:
+
+    * Creating Merchants and consulting their details
+    * Creating Loans and consulting their details
+
+    ## Merchants
+
+    ### Creating Merchants
+
+    Creating Merchants is usually the first step in the setup process. As mentioned in the [previous](docs/introduction/01-welcome.md) section, Merchants go through an evaluation before obtaining credentials, and this process is offline and can be delayed over time. 
+
+    In order to create the Merchant, and trigger the following evaluation process, you should send a POST request to the `/api/financial/merchant/` endpoint and provide all the information required. The expected data includes basic bio and professional details about the Merchant.
+
+    ![create-merchant](https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/b75dbfbb-a801-42c4-b0df-776c91868009.png)
+
+    **Request**
+
+    ```shell
+    curl --request POST \
+        --url https://api.nemuru.com/api/financials/merchant/ \
+        --header 'Content-Type: application/json' \
+        --header 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNZjk4ZjgwIn0...' \
+        --data '{
+                  "id": "6fef65a6-1e5f-11e9-ab34-d662bd873d88",
+                  "merchant_first_name": "Manolo",
+                  "merchant_last_name": "Lopez",
+                  "merchant_phone_number": "+34626901301",
+                  "merchant_email": "pinturas.manolo@nemuru.com",
+                  "merchant_declared_business_type": "ltd",
+                  "merchant_business_name": "Pinturas Manolo",
+                  "merchant_amount_of_employees": "0_3",
+                  "merchant_category": "other",
+                  "merchant_postal_code": "08025",
+                  "merchant_turnover": "0K_300K",
+                  "merchant_corporate_id_number": "B000012"
+                }'
+    ```
+
+    Once Merchants are created, consulting their details is explained below.
+
+    ### Consulting Merchant details
+
+    Retrieving the details of a particular Merchant (identified by `merchant_id`) can be done as follows:
+
+    **Request**
+
+    ```shell
+    curl --request GET \
+        --url https://api.nemuru.com/api/financials/merchant/6fef65a6-1e5f-11e9-ab34-d662bd873d88/ \
+        --header 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNZjk4ZjgwIn0...' \
+    ````
+
+    The Merchant signup process contains a number of steps that are represented by the variable `status` in the Merchant detail response, which indicates the most up-to-date progress status. See the flow diagram below to get an overview of the Merchant status lifecycle:
+
+    ![merchant-status](https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/bd116ede-d1ff-463a-b447-9bd666add01e.png)
+
+    ## Loans
+
+    ### Creating Loans
+
+    Creating a Loan is another very recurrent action. To create a Loan it will be necessary to provide two types of information: basic Loan parameters and contact details about the Borrower.
+
+    The corresponding endpoint is `/api/financial/loan/`.
+
+    ![create-loan](https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/80a074a3-1849-4ca4-8dc3-781a137c6ced.png)
+
+    **Request**
+
+    ```shell
+    curl --request POST \
+        --url https://api.nemuru.com/api/financials/merchant/ \
+        --header 'Content-Type: application/json' \
+        --header 'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNZjk4ZjgwIn0...' \
+        --data '{
+                  "id": "e7c52ad3-0473-4fbc-bc36-7eb755b1c18d",
+                  "loan_conditions_currency": "EUR",
+                  "loan_conditions_user_conditions_term_period": "30.00",
+                  "loan_conditions_loan_calculator_principal": "8000.00",
+                  "loan_conditions_program": "free_program",
+                  "loan_conditions_fee_amount": "20.00",
+                  "merchant_id": "9286898b-7bb7-4885-9a9b-94c4e880378b",
+                  "borrower_invitation_email": "john.doe@nemuru.com",
+                  "borrower_invitation_first_name": "John",
+                  "borrower_invitation_last_name": "Doe",
+                  "borrower_invitation_phone_number": "+34601000001",
+                  "borrower_invitation_total_budget_amount": "10000.00",
+                  "borrower_invitation_job_description": "Reformas de mi casa"
+                }'
+    ```
+    
+    Once Loans are created, consulting their details is explained below.
+
+    ### Consulting Loan details
+
+    Loan details can be checked using the following endpoints:
+      
+    * If the Loan has already been created:
+      * **GET** `/api/financial/loan/{loan_id}/`
+      * **GET** `/api/financial/merchant/{merchantId}/loan/`: returns all the Loans proposed by the Merchant
+        
+    > The Loan conditions can be inspected without necesarily creating a Loan. This is done by performing a simulation with `/api/financial/loan/conditions/`. The simulation requires to pass in the request the principal, term, fee amount, and merchant (associated pricing).
+    
+    In the same way that a Merchant has different statuses, a Loan has also multiple statuses that encompass its lifecycle. See the flow diagram below to get an overview of the Loan status lifecycle:
+
+    ![loan-status](https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/db7f96a2-67b9-4cc5-8903-44460ff2c2bd.png)
+
+  version: 2.0.0
+  title: Nemuru API
+  # termsOfService: 'http://swagger.io/terms/'
+  # contact:
+  #   name: API Support
+  #   email: apiteam@swagger.io
+  #   url: https://github.com/Redocly/redoc
+  x-logo:
+    url: 'https://mcusercontent.com/9fe5713c5d971de550dce4ea7/images/a86ce3e6-f02d-4f5e-9519-38dde561ed38.png'
+    altText: Nemuru logo
+  # license:
+  #   name: Apache 2.0
+  #   url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
+tags:
+  - name: merchant_model
+    x-displayName: The Merchant model
+    description: |
+      <SchemaDefinition schemaRef="#/components/schemas/Merchant" />
+  - name: loan_model
+    x-displayName: The Loan model
+    description: |
+      <SchemaDefinition schemaRef="#/components/schemas/Loan" />
+x-tagGroups:
+  - name: General
+    tags:
+      - Healthcheck
+      - Authentication
+      # - pet
+      # - store
+  - name: Financials
+    tags:
+      - Merchants
+      - Loans
+  - name: Models
+    tags:
+      - merchant_model
+      - loan_model
+      # - loan_conditions_model
+paths:
+  /api/healthcheck/ping:
+    get:
+      summary: Ping
+      tags:
+        - Healthcheck
+      responses:
+        '200':
+          description: OK
+        '500':
+          description: Internal Server Error
+      operationId: get-api-healthcheck-ping
+      description: Gets the operational status of the API.
+      parameters:
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+  /auth/login:
+    post:
+      summary: Create API Token
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token_type:
+                    description: Token type
+                    example: Bearer
+                    type: string
+                  refresh_token:
+                    description: Refresh token
+                    example: def50200d7cef7d466cc4132310b098f86721272d301aed4c97f7e34b1b7010f05e7a7fd819dac60ef3ac5ce312ee082eebb87d14c62974870cd93b9de0a2ea615e1e994b539fb81ffe6a468ae138c1a9651b7340d0f0f3f64a7e999db7880402921aee251f169e9bb47334e5a31c268b8d3edb72dbd6320b4f70e83d813ad1d49b2fdb004a92bc2f2ce53f0c995840b462032dfac8b186e9c5b7245e9d7d9aa7dcb84b306659ed4ee57bb184a1763fd142f173290e19d25c1ec3338db4d4e59f5f0f1ffa4645de32539d555476b88dc44540e69d34342a660a1e2d3c59cd3b5b9295888cc24f95bb35a204b40aae0a874f02bbdce3b0a30dc5ea875fef908e21a60eb870ec188e7de4427002dafd2636cacc3b4a1c58e6b5797f688316e29bdf369d1fb02aecded6adf1f45f2c01961fad9496b753c664a0975c1c0df283a4041b90c9a66d4325d4c37b6f0fb158c536f5b5503db02da2c5ea297791b55eccb90ecb57cfb96a06180a598b3a03e03c852be1252430d263aa18345279f5d5180eb2dffcf7df3c2b371e839eac90948c913c089f83af88e881fe4
+                    type: string
+                  access_token:
+                    description: Access token
+                    example: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNzFmNzkwYTMyNTFlZDcxYjBmMjA1NzJkYmRhMDM5ZTNiYjFjMDkxZmI5YWZjYjJjMjk2Y2Y4MDI4MjMxZGQyZTkyYzI0Zjk4ZjgwIn0.eyJhdWQiOiIyYTlhYzA2Mi1lOTRlLTRlMmQtYTUxNC1mMjYyMGY5NDAwOWUiLCJqdGkiOiI1YTk0MzcxZjc5MGEzMjUxZWQ3MWIwZjIwNTcyZGJkYTAzOWUzYmIxYzA5MWZiOWFmY2IyYzI5NmNmODAyODIzMWRkMmU5MmMyNGY5OGY4MCIsImlhdCI6MTU4NTEyODI1MCwibmJmIjoxNTg1MTI4MjUwLCJleHAiOjE1ODc4MDY2NTAsInN1YiI6InN1cGVyYWRtaW5AbmVtdXJ1LmNvbSIsInNjb3BlcyI6W119.R1cP6kgfDP_yCd90abyX6lg-RE5eFTWfR5jdL5dVUjRAeUAc6pwsR0Ov43qaIxeq2Y7H3w5NBz8Cllg92Vivs_1mSOT3eRMj4S7aoCO6KZPTEWyhWzREidXZpKFmFK-kd1ZPSSnmzBqWCu_Fr4NQBHxU35-T5vfxF4LP29OdaefKqDHCvUIpWzhLQEWvXdeZ6OIFwvwefOJkLDNSg-7q7MzVa9Bjdlt2ESVPi1-tsyrQ4mnuWQElpLIy36aapkT03Cbj9r1xXpxC-4Seqxt8TARGWlm8ojJaDrGb80_lVFwzEyU71tROdLipBC3n_-3WPourPk5rKNnzLbKVy9-jSg
+                    type: string
+                  expires_in:
+                    description: Expires in
+                    example: 2678400
+                    type: int
+              examples:
+                Example:
+                  value:
+                    token_type: Bearer
+                    expires_in: 2678400
+                    access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjVhOTQzNzFmNzkwYTMyNTFlZDcxYjBmMjA1NzJkYmRhMDM5ZTNiYjFjMDkxZmI5YWZjYjJjMjk2Y2Y4MDI4MjMxZGQyZTkyYzI0Zjk4ZjgwIn0.eyJhdWQiOiIyYTlhYzA2Mi1lOTRlLTRlMmQtYTUxNC1mMjYyMGY5NDAwOWUiLCJqdGkiOiI1YTk0MzcxZjc5MGEzMjUxZWQ3MWIwZjIwNTcyZGJkYTAzOWUzYmIxYzA5MWZiOWFmY2IyYzI5NmNmODAyODIzMWRkMmU5MmMyNGY5OGY4MCIsImlhdCI6MTU4NTEyODI1MCwibmJmIjoxNTg1MTI4MjUwLCJleHAiOjE1ODc4MDY2NTAsInN1YiI6InN1cGVyYWRtaW5AbmVtdXJ1LmNvbSIsInNjb3BlcyI6W119.R1cP6kgfDP_yCd90abyX6lg-RE5eFTWfR5jdL5dVUjRAeUAc6pwsR0Ov43qaIxeq2Y7H3w5NBz8Cllg92Vivs_1mSOT3eRMj4S7aoCO6KZPTEWyhWzREidXZpKFmFK-kd1ZPSSnmzBqWCu_Fr4NQBHxU35-T5vfxF4LP29OdaefKqDHCvUIpWzhLQEWvXdeZ6OIFwvwefOJkLDNSg-7q7MzVa9Bjdlt2ESVPi1-tsyrQ4mnuWQElpLIy36aapkT03Cbj9r1xXpxC-4Seqxt8TARGWlm8ojJaDrGb80_lVFwzEyU71tROdLipBC3n_-3WPourPk5rKNnzLbKVy9-jSg
+                    refresh_token: def50200d7cef7d466cc4132310b098f86721272d301aed4c97f7e34b1b7010f05e7a7fd819dac60ef3ac5ce312ee082eebb87d14c62974870cd93b9de0a2ea615e1e994b539fb81ffe6a468ae138c1a9651b7340d0f0f3f64a7e999db7880402921aee251f169e9bb47334e5a31c268b8d3edb72dbd6320b4f70e83d813ad1d49b2fdb004a92bc2f2ce53f0c995840b462032dfac8b186e9c5b7245e9d7d9aa7dcb84b306659ed4ee57bb184a1763fd142f173290e19d25c1ec3338db4d4e59f5f0f1ffa4645de32539d555476b88dc44540e69d34342a660a1e2d3c59cd3b5b9295888cc24f95bb35a204b40aae0a874f02bbdce3b0a30dc5ea875fef908e21a60eb870ec188e7de4427002dafd2636cacc3b4a1c58e6b5797f688316e29bdf369d1fb02aecded6adf1f45f2c01961fad9496b753c664a0975c1c0df283a4041b90c9a66d4325d4c37b6f0fb158c536f5b5503db02da2c5ea297791b55eccb90ecb57cfb96a06180a598b3a03e03c852be1252430d263aa18345279f5d5180eb2dffcf7df3c2b371e839eac90948c913c089f83af88e881fe4
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+      operationId: post-api-auth-login
+      description: Creates an API Token from your username and password. Make sure to use this `access_token` in the following requests.
+      parameters:
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: Login
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Username
+                  example: username@email.com
+                password:
+                  type: string
+                  description: Password
+                  example: '12345'
+              required:
+                - username
+                - password
+            examples:
+              Example:
+                value:
+                  username: username@email.com
+                  password: '12345'
+          text/plain:
+            schema:
+              type: object
+              properties: {}
+        description: Login
+    parameters: []
+  /financial/merchant/:
+    get:
+      summary: Get Merchants
+      tags:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status
+                    enum:
+                      - ok
+                      - ko
+                    example: ok
+                  data:
+                    type: array
+                    description: ''
+                    items:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          description: Status
+                          enum:
+                            - ok
+                            - ko
+                          example: ok
+                        payload:
+                          $ref: '#/components/schemas/Merchant'
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    data:
+                      - status: ok
+                        payload:
+                          created_at: 2020-02-04T12:52:15+00:00
+                          updated_at: 2020-03-20T10:07:33+00:00
+                          id: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+                          registration_fields:
+                            full_name:
+                              first_name: Manolo
+                              last_name: Lopez
+                            phone_number: '+34626901301'
+                            email: pinturas.manolo@nemuru.com
+                            business_type: ltd
+                            business_name: Pinturas Manolo
+                            amount_of_employees: '0_3'
+                            category: other
+                            postal_code: '08025'
+                            corporate_id_number: B000012
+                            turnover: 0K_300K
+                          loan_programs:
+                            - name: zero_program
+                            - name: free_program
+                          status: status_documents_completed
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+      operationId: get-api-financial-merchant
+      description: "Gets the list of all Merchants.\n\n<!-- theme:info -->\n> The Merchant `status` represents the most up-to-date status. Check the {use-cases.md} section to get an overview of the Merchant status lifecycle. "
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          required: true
+          description: Authorization
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+      # security:
+      #   - access_token: []
+    post:
+      summary: Create Merchant
+      tags:
+        - Merchants
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+      operationId: post-api-financial-merchant
+      description: |-
+        Creates a Merchant.
+
+        <!-- theme: info -->
+        > We follow the Tell-Don't-Ask principle, which means that we expected the request to provide an `id` (uuid) that will be stored and used as primary key to identify the Merchant in the future.
+
+        <!-- theme: danger -->
+        > **Phone number** and **email address** must be unique
+
+        In case you created a Merchant the wrong way, please contact us so we can fix it for you.
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: The Merchant id
+                  format: uuid
+                  example: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+                merchant_first_name:
+                  type: string
+                  description: The Merchant first name
+                  example: Manolo
+                merchant_last_name:
+                  type: string
+                  description: The Merchant last name
+                  example: Lopez
+                merchant_phone_number:
+                  type: string
+                  description: The Merchant phone number
+                  example: '+34626901301'
+                merchant_email:
+                  type: string
+                  description: The Merchant email
+                  format: email
+                  example: pinturas.manolo@nemuru.com
+                merchant_declared_business_type:
+                  type: string
+                  enum:
+                    - self-employed
+                    - ltd
+                  example: ltd
+                  description: The Merchant declared business type
+                merchant_business_name:
+                  type: string
+                  example: Pinturas Manolo
+                  description: The Merchant business name
+                merchant_amount_of_employees:
+                  type: string
+                  description: The Merchant amount of employees
+                  enum:
+                    - '0_3'
+                    - '3_10'
+                    - '10_20'
+                    - '20_PLUS'
+                  example: '0_3'
+                merchant_category:
+                  type: string
+                  description: The Merchant category
+                  enum:
+                    - bathrooms
+                    - kitchen
+                    - whole_house
+                    - buildings
+                    - architecture
+                    - decoration_and_design
+                    - eco_improvement_and_solar_panels
+                    - real_estate_and_rentals
+                    - warehouse
+                    - painting
+                    - carpentry
+                    - home_staging
+                    - structure_and_humidity
+                    - installations
+                    - pools
+                    - elevators
+                    - awnings
+                    - gardening
+                    - other
+                    - cosmetic_surgery
+                    - travels
+                    - education_and_trainings
+                    - car_service
+                    - car_dealerships
+                  example: other
+                merchant_postal_code:
+                  type: string
+                  description: The Merchant postal code
+                  example: '08025'
+                merchant_turnover:
+                  type: string
+                  description: The Merchant turnover
+                  enum:
+                    - 0K_300K
+                    - 300K_1M
+                    - 1M_2M
+                    - 2M_5M
+                    - 5M_plus
+                  example: 0K_300K
+                merchant_corporate_id_number:
+                  type: string
+                  description: The Merchant corporate id number
+                  example: 47865965K
+              required:
+                - id
+                - merchant_first_name
+                - merchant_last_name
+                - merchant_phone_number
+                - merchant_email
+                - merchant_declared_business_type
+                - merchant_business_name
+                - merchant_amount_of_employees
+                - merchant_category
+                - merchant_postal_code
+                - merchant_turnover
+                - merchant_corporate_id_number
+            examples:
+              Example:
+                value:
+                  id: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+                  merchant_first_name: Manolo
+                  merchant_last_name: Lopez
+                  merchant_phone_number: '+34626901301'
+                  merchant_email: pinturas.manolo@nemuru.com
+                  merchant_declared_business_type: ltd
+                  merchant_business_name: Pinturas Manolo
+                  merchant_amount_of_employees: '0_3'
+                  merchant_category: other
+                  merchant_postal_code: '08025'
+                  merchant_turnover: 0K_300K
+                  merchant_corporate_id_number: B000012
+        description: ''
+        # security:
+        #   - access_token: []
+  /api/financial/merchant/{merchantId}/:
+    parameters:
+      - schema:
+          type: string
+          format: uuid
+          example: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+        name: merchantId
+        in: path
+        required: true
+        description: Merchant Id
+    get:
+      summary: Get Merchant by Id
+      tags:
+        - Merchants
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                    description: Status
+                  payload:
+                    $ref: '#/components/schemas/Merchant'
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    payload:
+                      created_at: 2020-02-04T12:52:15+00:00
+                      updated_at: 2020-03-20T10:07:33+00:00
+                      id: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+                      registration_fields:
+                        full_name:
+                          first_name: Manolo
+                          last_name: Lopez
+                        phone_number: '+34626901301'
+                        email: pinturas.manolo@nemuru.com
+                        business_type: ltd
+                        business_name: Pinturas Manolo
+                        amount_of_employees: '0_3'
+                        category: other
+                        postal_code: '08025'
+                        turnover: 0K_300K
+                        corporate_id_number: B000012
+                      status: status_documents_completed
+                      loan_programs:
+                        - name: zero_program
+                        - name: free_program
+                    identifier: 'urn:nemuru:financial:merchant:6fef65a6-1e5f-11e9-ab34-d662bd873d88'
+        '400':
+          description: ''
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+        '':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                    description: Status
+                  payload:
+                    $ref: '#/components/schemas/Merchant'
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    payload:
+                      created_at: 2020-02-04T12:52:15+00:00
+                      updated_at: 2020-03-20T10:07:33+00:00
+                      id: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+                      registration_fields:
+                        full_name:
+                          first_name: Manolo
+                          last_name: Lopez
+                        phone_number: '+34626901301'
+                        email: pinturas.manolo@nemuru.com
+                        business_type: ltd
+                        business_name: Pinturas Manolo
+                        amount_of_employees: '0_3'
+                        category: other
+                        postal_code: '08025'
+                        turnover: 0K_300K
+                        corporate_id_number: B000012
+                      status: status_documents_completed
+                      loan_programs:
+                        - name: zero_program
+                        - name: free_program
+                    identifier: 'urn:nemuru:financial:merchant:6fef65a6-1e5f-11e9-ab34-d662bd873d88'
+          description: ''
+      operationId: get-api-financial-merchant-merchantId
+      description: "Gets a Merchant by their Id.\n\n<!-- theme:info -->\n> The Merchant `status` represents the most up-to-date status. Check the [Use cases](#section/Use-cases/Merchants) section to get an overview of the Merchant status lifecycle. "
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+  /api/financial/merchant/{merchantId}/loan/:
+    parameters:
+      - schema:
+          type: string
+          format: uuid
+          example: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+        name: merchantId
+        in: path
+        required: true
+        description: Merchant Id
+    get:
+      summary: Get Loans by Merchant Id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status
+                    enum:
+                      - ok
+                      - ko
+                    example: ok
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          enum:
+                            - ok
+                            - ko
+                          example: ok
+                          description: Status
+                        payload:
+                          $ref: '#/components/schemas/Loan'
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    data:
+                      - status: ok
+                        payload:
+                          created_at: 2020-03-23T12:33:55+00:00
+                          updated_at: 2020-03-23T12:33:55+00:00
+                          id: 1c5d6380-13c3-44c0-930e-9ea9f6090559
+                          status: status_initial
+                          loan_conditions:
+                            currency: EUR
+                            due_date: 1
+                            program: free_program
+                            merchant_discount_percentage: 0.0
+                            annual_interest: 0.0725
+                            principal: 8000.0
+                            setup_fee: 0
+                            term: 30.0
+                            number_of_payments: 30
+                            tae: 0.075
+                            total_interest_paid: 70.97
+                            total_amount_paid: 8770.97
+                            user_defined_quota: 292.37
+                          borrower_invitation:
+                            email: john.doe@nemuru.com
+                            full_name:
+                              first_name: John
+                              last_name: Doe
+                            phone_number: '+34601000001'
+                            borrower_invitation_expires_on: 2020-08-15T00:00:00+00:00
+                          total_budget: 10000.0
+                          job_description: Reformas de mi casa
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+      operationId: get-api-financial-merchant-merchantId-loan
+      description: "Gets list of Loans from a specific Merchant by their Merchant id.\n\n<!-- theme:info -->\n> The Loan `status` represents the most up-to-date status. Check the {use-cases.md} section to get an overview of the Loan status lifecycle. "
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+      tags:
+        - Merchants
+  /api/financial/loan/:
+    post:
+      summary: Creates a Loan
+      tags:
+        - Loans
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict
+        '500':
+          description: Internal Server Error
+      operationId: post-api-financial-loan
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  example: e7c52ad3-0473-4fbc-bc36-7eb755b1c18d
+                  description: The Loan id
+                loan_conditions_currency:
+                  type: string
+                  example: EUR
+                  description: The Loan conditions currency
+                loan_conditions_user_conditions_term_period:
+                  type: number
+                  description: The Loan conditions user conditions term period
+                  example: 30
+                loan_conditions_loan_calculator_principal:
+                  type: number
+                  description: The Loan conditions loan calculator principal
+                  example: 8000
+                loan_conditions_program:
+                  type: string
+                  description: The Loan conditions program
+                  enum:
+                    - free_program
+                    - zero_program
+                  example: free_program
+                loan_conditions_fee_amount:
+                  type: number
+                  description: The Loan conditions setup fee for the borrower
+                  example: 20
+                merchant_id:
+                  type: string
+                  description: The Loan merchant id
+                  format: uuid
+                  example: 9286898b-7bb7-4885-9a9b-94c4e880378b
+                borrower_invitation_email:
+                  type: string
+                  format: email
+                  example: john.doe@nemuru.com
+                  description: The Loan borrower invitation email
+                borrower_invitation_first_name:
+                  type: string
+                  example: John
+                  description: The Loan borrower invitation first name
+                borrower_invitation_last_name:
+                  type: string
+                  example: Doe
+                  description: The Loan borrower invitation last name
+                borrower_invitation_phone_number:
+                  type: string
+                  example: '+34601000001'
+                  description: The Loan borrower invitation phone number
+                borrower_invitation_total_budget_amount:
+                  type: number
+                  example: 10000
+                  description: The Loan borrower invitation total budget amount
+                borrower_invitation_job_description:
+                  type: string
+                  description: The Loan borrower invitation job description
+                  example: Reformas de mi casa
+              required:
+                - id
+                - loan_conditions_currency
+                - loan_conditions_user_conditions_term_period
+                - loan_conditions_loan_calculator_principal
+                - loan_conditions_program
+                - loan_conditions_fee_amount
+                - merchant_id
+                - borrower_invitation_email
+                - borrower_invitation_first_name
+                - borrower_invitation_last_name
+                - borrower_invitation_phone_number
+                - borrower_invitation_total_budget_amount
+                - borrower_invitation_job_description
+            examples:
+              Example:
+                value:
+                  id: e7c52ad3-0473-4fbc-bc36-7eb755b1c18d
+                  loan_conditions_currency: EUR
+                  loan_conditions_user_conditions_term_period: 30.00
+                  loan_conditions_loan_calculator_principal: 8000.00
+                  loan_conditions_program: free_program
+                  loan_conditions_fee_amount: 20.00
+                  merchant_id: 9286898b-7bb7-4885-9a9b-94c4e880378b
+                  borrower_invitation_email: john.doe@nemuru.com
+                  borrower_invitation_first_name: John
+                  borrower_invitation_last_name: Doe
+                  borrower_invitation_phone_number: '+34601000001'
+                  borrower_invitation_total_budget_amount: 10000.00
+                  borrower_invitation_job_description: Reformas de mi casa
+      description: |-
+        Creates a Loan.
+
+        The request must provide information about the Loan conditions and the corresponding Borrower.
+
+        <!-- theme: info -->
+        > We follow the Tell-Don't-Ask principle, which means that we expected the request to provide an `id` (uuid) that will be stored and used as primary key to identify the Loan in the future. The Loan proposal must come from a Merchant previously created, which is linked by the `merchant_id` in the request.
+  /api/financial/loan/{loanId}/:
+    parameters:
+      - schema:
+          type: string
+          format: uuid
+          example: 1c5d6380-13c3-44c0-930e-9ea9f6090559
+        name: loanId
+        in: path
+        required: true
+        description: Loan Id
+    get:
+      summary: Get Loan by Id
+      tags:
+        - Loans
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status
+                    enum:
+                      - ok
+                      - ko
+                    example: ok
+                  payload:
+                    $ref: '#/components/schemas/Loan'
+                required:
+                  - status
+                  - payload
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    payload:
+                      created_at: 2020-03-23T12:33:55+00:00
+                      updated_at: 2020-03-23T12:33:55+00:00
+                      id: 1c5d6380-13c3-44c0-930e-9ea9f6090559
+                      status: status_initial
+                      loan_conditions:
+                        currency: EUR
+                        due_date: 1
+                        program: free_program
+                        merchant_discount_percentage: 0.0
+                        annual_interest: 0.0725
+                        principal: 8000.0
+                        setup_fee: 0
+                        term: 30.0
+                        number_of_payments: 30
+                        tae: 0.075
+                        total_interest_paid: 770.97
+                        total_amount_paid: 8770.97
+                        user_defined_quota: 292.37
+                      borrower_invitation:
+                        email: john.doe@nemuru.com
+                        full_name:
+                          first_name: John
+                          last_name: Doe
+                        phone_number: '+34601000001'
+                        borrower_invitation_expires_on: 2020-08-15T00:00:00+00:00
+                        total_budget: 10000.0
+                        job_description: Reformas de mi casa
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+      operationId: get-api-financial-loan-loanId
+      description: "Gets a Loan by its Id.\n\n<!-- theme:info -->\n> The Loan `status` represents the most up-to-date status. Check the [Use cases](#section/Use-cases/Loans) section to get an overview of the Loan status lifecycle. "
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+  /api/financial/loan/conditions/:
+    get:
+      summary: Get Loan conditions
+      tags:
+        - Loans
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: Status
+                    enum:
+                      - ok
+                      - ko
+                    example: ok
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+                          description: Status
+                          enum:
+                            - ok
+                            - ko
+                        payload:
+                          type: object
+                          properties:
+                            created_at:
+                              type: string
+                              description: Created at
+                              format: date-time
+                              example: 2020-03-23T12:33:55+00:00
+                            updated_at:
+                              type: string
+                              description: Updated at
+                              format: date-time
+                              example: 2020-03-23T12:33:55+00:00
+                            loan_conditions:
+                              $ref: '#/components/schemas/LoanConditions'
+              examples:
+                Example:
+                  value:
+                    status: ok
+                    data:
+                      - status: ok
+                        payload:
+                          created_at: 2020-04-24T07:32:16+00:00
+                          updated_at: 2020-04-24T07:32:16+00:00
+                          loan_conditions:
+                            currency: EUR
+                            due_date: 1
+                            program: zero_program
+                            merchant_discount_percentage: 0.099
+                            annual_interest: 0
+                            principal: 8000
+                            setup_fee: 0
+                            term: 30
+                            number_of_payments: 30
+                            tae: 0
+                            total_interest_paid: 0
+                            total_amount_paid: 8000
+                            user_defined_quota: 266.67
+                      - status: ok
+                        payload:
+                          created_at: 2020-04-24T07:32:16+00:00
+                          updated_at: 2020-04-24T07:32:16+00:00
+                          loan_conditions:
+                            currency: EUR
+                            due_date: 1
+                            program: free_program
+                            merchant_discount_percentage: 0
+                            annual_interest: 0.0725
+                            principal: 8000
+                            setup_fee: 0
+                            term: 30
+                            number_of_payments: 30
+                            tae: 0.075
+                            total_interest_paid: 770.97
+                            total_amount_paid: 8770.97
+                            user_defined_quota: 292.37
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+      operationId: get-api-financial-loan-conditions
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: Authorization
+          description: Authorization
+          required: true
+        - schema:
+            type: string
+            default: application/json
+          in: header
+          name: Content-Type
+          description: Content-Type
+          required: false
+        - schema:
+            type: string
+            example: 9286898b-7bb7-4885-9a9b-94c4e880378b
+          in: query
+          name: merchant_id
+          description: The Merchant id
+          required: true
+        - schema:
+            type: string
+            example: EUR
+          in: query
+          name: currency
+          description: The Loan currrency
+          required: true
+        - schema:
+            type: number
+            example: 30
+          in: query
+          name: term_period
+          required: true
+          description: The Loan term defined by the user
+        - schema:
+            type: number
+            example: 8000
+          in: query
+          name: principal_amount
+          description: The Loan principal amount
+          required: true
+        - schema:
+            type: number
+            example: 20
+          in: query
+          name: fee_amount
+          description: The Loan setup fee amount
+          required: true
+      description: |-
+        Gets the Loan conditions given a Merchant id and Loan parameters (principal, term, setup fee, and currrency).
+
+        <!-- theme: info -->
+        > This operation does not create a Loan, it only simulates and returns the conditions of a Loan with the principal, term, fee amount, and merchant (associated pricing) provided in the request.
+components:
+  schemas:
+    Merchant:
+      title: Merchant
+      type: object
+      x-tags:
+        - Merchants
+      x-examples:
+        Example:
+          created_at: 2020-02-04T12:52:15+00:00
+          updated_at: 2020-03-20T10:07:33+00:00
+          id: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+          registration_fields:
+            full_name:
+              first_name: Manolo
+              last_name: Lopez
+            phone_number: '+34626901301'
+            email: pinturas.manolo@nemuru.com
+            business_type: ltd
+            business_name: Pinturas Manolo
+            amount_of_employees: '0_3'
+            category: other
+            postal_code: '08025'
+            turnover: 0K_300K
+            corporate_id_number: B000012
+          status: status_documents_completed
+          loan_programs:
+            - name: zero_program
+            - name: free_program
+      description: The Merchant resource
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          example: 2020-02-04T12:52:15+00:00
+          description: Created at
+        updated_at:
+          type: string
+          format: date-time
+          example: 2020-03-20T10:07:33+00:00
+          description: Updated at
+        id:
+          type: string
+          format: uuid
+          example: 6fef65a6-1e5f-11e9-ab34-d662bd873d88
+          description: Id
+        registration_fields:
+          title: registration_fields
+          type: object
+          description: The Merchant registration fields used when the Merchant was created
+          required:
+            - full_name
+            - phone_number
+            - email
+            - business_type
+            - business_name
+            - amount_of_employees
+            - category
+            - postal_code
+            - turnover
+            - corporate_id_number
+          properties:
+            full_name:
+              type: object
+              description: The Merchant full name
+              required:
+                - first_name
+                - last_name
+              properties:
+                first_name:
+                  type: string
+                  description: The Merchant first name
+                  example: Manolo
+                last_name:
+                  type: string
+                  example: Lopez
+                  description: The Merchant last name
+            phone_number:
+              type: string
+              description: The Merchant phone number
+              example: '+34626901301'
+            email:
+              type: string
+              format: email
+              example: pinturas.manolo@nemuru.com
+              description: The Merchant email
+            business_type:
+              type: string
+              enum:
+                - self-employed
+                - ltd
+              example: ltd
+              description: The Merchant business type
+            business_name:
+              type: string
+              description: The Merchant business name
+              example: Pinturas Manolo
+            amount_of_employees:
+              type: string
+              description: The Merchant amount of employees
+              enum:
+                - '0_3'
+                - '3_10'
+                - '10_20'
+                - '20_PLUS'
+              example: '0_3'
+            category:
+              type: string
+              enum:
+                - bathrooms
+                - kitchen
+                - whole_house
+                - buildings
+                - architecture
+                - decoration_and_design
+                - eco_improvement_and_solar_panels
+                - real_estate_and_rentals
+                - warehouse
+                - painting
+                - carpentry
+                - home_staging
+                - structure_and_humidity
+                - installations
+                - pools
+                - elevators
+                - awnings
+                - gardening
+                - other
+                - cosmetic_surgery
+                - travels
+                - education_and_trainings
+                - car_service
+                - car_dealerships
+              example: other
+              description: The Merchant category
+            postal_code:
+              type: string
+              description: The Merchant postal code
+              example: '08025'
+            turnover:
+              type: string
+              enum:
+                - 0K_300K
+                - 300K_1M
+                - 1M_2M
+                - 2M_5M
+                - 5M_plus
+              example: 0K_300K
+              description: The Merchant turnover
+            corporate_id_number:
+              type: string
+              description: The Merchant corporate id number
+              example: B000012
+        loan_programs:
+          type: array
+          description: The Merchant loan programs
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                enum:
+                  - free_program
+                  - zero_program
+                example: free_program
+                description: The Loan program
+            required:
+              - name
+        status:
+          externalDocs:
+            description: "Find more info here"
+            url: "#section/Use-cases/Merchants"
+          type: string
+          enum:
+            - status_pending_documents
+            - status_documents_completed
+            - status_pre_approved
+            - status_asleep
+            - status_suspended
+            - status_banned
+          example: status_documents_completed
+          description: Current status
+      required:
+        - created_at
+        - updated_at
+        - id
+        - registration_fields
+        - loan_programs
+        - status
+    LoanConditions:
+      title: Loan conditions
+      type: object
+      x-tags:
+        - Loans
+      x-examples:
+        Example:
+          loan_conditions:
+            currency: EUR
+            due_date: 1
+            program: free_program
+            merchant_discount_percentage: 0
+            annual_interest: 0.0725
+            principal: 8000
+            setup_fee: 0
+            term: 30
+            number_of_payments: 30
+            tae: 0.075
+            total_interest_paid: 770.97
+            total_amount_paid: 8770.97
+            user_defined_quota: 292.37
+      properties:
+        currency:
+          description: The Loan currency
+          example: EUR
+          type: string
+        due_date:
+          description: The Loan due date
+          example: 1
+          type: integer
+        program:
+          description: The Loan program
+          type: string
+          example: free_program
+          enum:
+            - free_program
+            - zero_program
+        merchant_discount_percentage:
+          description: merchant_discount_percentage
+          example: 0
+          type: number
+        annual_interest:
+          type: number
+          description: The Loan annual interest
+          example: 0.0725
+        principal:
+          description: The Loan principal
+          type: number
+          example: 8000
+        setup_fee:
+          type: number
+          description: The Loan setup fee
+          example: 0
+        term:
+          description: The Loan term
+          type: number
+          example: 30
+        number_of_payments:
+          description: The Loan number of payments
+          type: number
+          example: 30
+        tae:
+          description: The Loan tae
+          type: number
+          example: 0.075
+        total_interest_paid:
+          type: number
+          description: Total interest paid
+          example: 770.97
+        total_amount_paid:
+          type: number
+          description: Total amount paid by the Borrower (sum of principal and interests)
+          example: 8770.97
+        user_defined_quota:
+          type: number
+          description: User defined quota
+          example: 292.37
+      required:
+        - user_defined_quota
+        - total_amount_paid
+        - total_interest_paid
+        - tae
+        - number_of_payments
+        - term
+        - setup_fee
+        - principal
+        - annual_interest
+        - merchant_discount_percentage
+        - program
+        - due_date
+        - currency
+      description: The Loan conditions resource
+    Loan:
+      title: Loan
+      type: object
+      x-tags:
+        - Loans
+      x-examples:
+        Example:
+          created_at: 2020-03-23T12:33:55+00:00
+          updated_at: 2020-03-23T12:33:55+00:00
+          id: 1c5d6380-13c3-44c0-930e-9ea9f6090559
+          status: status_initial
+          loan_conditions:
+            currency: EUR
+            due_date: 1
+            program: free_program
+            merchant_discount_percentage: 0
+            annual_interest: 0.0725
+            principal: 8000.0
+            setup_fee: 0
+            term: 30
+            number_of_payments: 30
+            tae: 0.075
+            total_interest_paid: 770.97
+            total_amount_paid: 8770.97
+            user_defined_quota: 292.37
+          borrower_invitation:
+            email: john.doe@nemuru.com
+            full_name:
+              first_name: John
+              last_name: Doe
+            phone_number: '+34601000001'
+            borrower_invitation_expires_on: 2020-08-15T00:00:00+00:00
+          job_description: Reformas de mi casa
+          total_budget: 10000.0
+      description: The Loan resource
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          example: 2020-03-23T12:33:55+00:00
+          description: Created at
+        updated_at:
+          type: string
+          format: date-time
+          example: 2020-03-23T12:33:55+00:00
+          description: Updated at
+        id:
+          type: string
+          description: The Loan id
+          format: uuid
+          example: 1c5d6380-13c3-44c0-930e-9ea9f6090559
+        status:
+          externalDocs:
+            description: "Find more info here"
+            url: "#section/Use-cases/Loans"
+          type: string
+          description: The Loan status
+          enum:
+            - status_denied
+            - status_desisted
+            - status_expired
+            - status_initial
+            - status_lender_has_been_selected
+            - status_active_trial
+            - status_active
+            - status_cancelled
+            - status_analysing
+            - status_contract_signed
+            - status_docs_approved
+            - status_unpaid
+            - status_ended
+          example: status_initial
+        loan_conditions:
+          $ref: '#/components/schemas/LoanConditions'
+        borrower_invitation:
+          type: object
+          description: The Borrower invitation
+          required:
+            - email
+            - full_name
+            - phone_number
+            - borrower_invitation_expires_on
+            - total_budget
+            - job_description
+          properties:
+            email:
+              type: string
+              format: email
+              example: john.doe@nemuru.com
+              description: The Borrower email
+            full_name:
+              type: object
+              description: The Borrower full name
+              required:
+                - first_name
+                - last_name
+              properties:
+                first_name:
+                  example: John
+                  type: string
+                  description: The Borrower first name
+                last_name:
+                  example: Doe
+                  type: string
+                  description: The Borrower last name
+            phone_number:
+              example: '+34601000001'
+              type: string
+              description: The Borrower phone number
+            borrower_invitation_expires_on:
+              type: string
+              format: date-time
+              example: 2020-08-15T00:00:00+00:00
+              description: The Borrower invitation expiration date
+        job_description:
+          example: Reformas de mi casa
+          type: string
+          description: Job description
+        total_budget:
+          type: number
+          description: Total budget
+          example: 10000
+      required:
+        - created_at
+        - updated_at
+        - id
+        - status
+        - loan_conditions
+        - borrower_invitation
+  securitySchemes:
+    access_token:
+      type: apiKey
+      name: access_token
+      in: header
